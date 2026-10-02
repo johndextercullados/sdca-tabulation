@@ -1,11 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Users, MonitorPlay, CheckCircle2, Trophy, UserPlus } from 'lucide-react';
+import { Users, MonitorPlay, CheckCircle2, Trophy, UserPlus, Trash2 } from 'lucide-react';
 
-const INITIAL_CANDIDATES = Array.from({ length: 15 }, (_, i) => ({
-  id: i + 1,
-  name: `Candidate ${i + 1}`,
-  image: `https://ui-avatars.com/api/?name=C+${i + 1}&background=random&size=150`
-}));
+const MAX_CANDIDATES = 50;
 
 const CATEGORIES = [
   {
@@ -37,7 +33,7 @@ export default function App() {
   const [scores, setScores] = useState({});
   const [currentScores, setCurrentScores] = useState({ 0: 5, 1: 5, 2: 5 });
   const [currentComment, setCurrentComment] = useState('');
-  const [candidates, setCandidates] = useState(INITIAL_CANDIDATES);
+  const [candidates, setCandidates] = useState([]);
   const [newCandidateName, setNewCandidateName] = useState('');
   const [newCandidateImage, setNewCandidateImage] = useState('');
 
@@ -89,7 +85,7 @@ export default function App() {
     const trimmedName = newCandidateName.trim();
     const trimmedImage = newCandidateImage.trim();
 
-    if (!trimmedName) return;
+    if (!trimmedName || candidates.length >= MAX_CANDIDATES) return;
 
     const newCandidate = {
       id: candidates.length ? Math.max(...candidates.map(candidate => candidate.id)) + 1 : 1,
@@ -100,6 +96,20 @@ export default function App() {
     setCandidates(prev => [...prev, newCandidate]);
     setNewCandidateName('');
     setNewCandidateImage('');
+  };
+
+  const handleDeleteCandidate = (candidate) => {
+    if (!window.confirm(`Delete ${candidate.name} and all of their submitted scores?`)) return;
+
+    setCandidates(prev => prev.filter(item => item.id !== candidate.id));
+    setScores(prev => Object.fromEntries(
+      Object.entries(prev).filter(([key]) => Number(key.split('-')[0]) !== candidate.id)
+    ));
+
+    if (activeCandidateId === candidate.id) {
+      setActiveCandidateId(null);
+      setCurrentComment('');
+    }
   };
 
   const handleScoreSubmit = () => {
@@ -175,13 +185,43 @@ export default function App() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handleAddCandidate}
-                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors"
-              >
-                Add Candidate
-              </button>
+              <div className="mt-4 flex flex-wrap items-center gap-4">
+                <button
+                  type="button"
+                  onClick={handleAddCandidate}
+                  disabled={candidates.length >= MAX_CANDIDATES}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors"
+                >
+                  Add Candidate
+                </button>
+                <span className="text-sm text-slate-500" aria-live="polite">
+                  {candidates.length} / {MAX_CANDIDATES} candidates
+                </span>
+              </div>
+
+              {candidates.length > 0 && (
+                <div className="mt-6 border-t border-slate-200 pt-4">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-2">Candidates</h3>
+                  <ul className="divide-y divide-slate-100">
+                    {candidates.map(candidate => (
+                      <li key={candidate.id} className="flex items-center justify-between gap-3 py-2">
+                        <span className="min-w-0 truncate text-sm text-slate-700">
+                          #{candidate.id} {candidate.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCandidate(candidate)}
+                          aria-label={`Delete ${candidate.name}`}
+                          title={`Delete ${candidate.name}`}
+                          className="rounded-md p-2 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <div className="grid lg:grid-cols-3 gap-6">
@@ -214,6 +254,9 @@ export default function App() {
                       <div className="text-sm text-slate-500 truncate">{candidate.name}</div>
                     </button>
                   ))}
+                  {candidates.length === 0 && (
+                    <p className="col-span-full text-sm text-slate-500">Add a candidate to begin stage control.</p>
+                  )}
                 </div>
               </div>
 
